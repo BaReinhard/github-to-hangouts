@@ -3,53 +3,64 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"strconv"
+
+	"golang.org/x/oauth2/google"
 
 	"golang.org/x/net/context"
 	"google.golang.org/api/chat/v1"
 	"google.golang.org/appengine" // Required external App Engine library
 	"google.golang.org/appengine/log"
-	"google.golang.org/appengine/urlfetch"
 )
 
-type Message struct {
-	Text        string       `json:"text"`
-	User        UserObject   `json:"sender"`
-	Annotations []Annotation `json:"annotations"`
+type GithubPayload struct {
+	Action      string      `json:"action"`
+	Number      int         `json:"number"`
+	PullRequest PullRequest `json:"pull_request"`
+	Repository  Repository  `json:"repository"`
 }
-type Annotation struct {
-	Usermention UserMention `json:"userMention"`
+type PullRequest struct {
+	URL  string `json:"url"`
+	ID   int    `json:"id"`
+	User User   `json:"user"`
+	Body string `json:"body"`
 }
-type UserMention struct {
-	User UserObject `json:"user"`
-}
-type UserObject struct {
-	Name        string `json:"name"`
-	DisplayName string `json:"displayName"`
-	Type        string `json:"type"`
-}
-
-// Payload send from GChat
-type Payload struct {
-	Message Message   `json:"message"`
-	User    chat.User `json:"user"`
-	Space   Space     `json:"space"`
-	Type    string    `json:"type"`
+type User struct {
+	Login     string `json:"login"`
+	ID        int    `json:"id"`
+	AvatarURL string `json:"avatar_url"`
 }
 
-// Space Struct for Unmarshalling
-type Space struct {
-	Name string `json:"name"`
+type Repository struct {
+	ID       int    `json:"id"`
+	Name     string `json:"name"`
+	FullName string `json:"full_name"`
 }
 
 func indexHandler(w http.ResponseWriter, r *http.Request) {
+
+	ctx := appengine.NewContext(r)
+
 	// Set Headers
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 
+	log.Infof(ctx, "Endpoint reached "+r.URL.Path)
+	// Check Endpoint for Secure Endpoint
+	if r.URL.Path != "/"+os.Getenv("SECURE_ENDPOINT") {
+		http.Error(w, "Bad Request", http.StatusForbidden)
+		return
+	}
+
+	// Check Key
+	if r.URL.Query().Get("key") != os.Getenv("SECURE_KEY") {
+		http.Error(w, "Bad Shared Key", http.StatusForbidden)
+		return
+	}
+
 	// Set Context to appengine context
-	ctx := appengine.NewContext(r)
 
 	// Read Body into Bytes Array
 	b, e := ioutil.ReadAll(r.Body)
@@ -58,74 +69,19 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(e)
 	}
 	log.Infof(ctx, "Body: %+v", string(b))
-	var message Payload
-	// Unmarshall Byte Array (b) into a Message Struct (message) to interact easier
-	json.Unmarshal(b, &message)
-
-	switch message.Space.Name {
-	case "spaces/AAAA0c_TyMI":
-		// Switch Case Space : spaces/AAAA0c_TyMI . Sends to JavaScript Cloud Function
-		// Setup as a beginning codebase for beginners
-		// Repo Here: https://github.com/BaReinhard/help-bot
-
-		log.Infof(ctx, "Sending to Bot Dev Room")
-		msg, err := postToRoom(ctx, "https://us-central1-uplifted-elixir-203119.cloudfunctions.net/helpBot", bytes.NewReader(b))
-		if err != nil {
-			// Log Error and Return An Error Message in a Chat Friendly Format
-			log.Errorf(ctx, "An Error Occurred: ", err)
-			json.NewEncoder(w).Encode(chat.Message{Text: "An error has occurred"})
-		}
-		log.Infof(ctx, "Returned from Bot Dev Room: %+v", msg)
-		json.NewEncoder(w).Encode(msg)
-	case "spaces/AAAAifGFyYk":
-		log.Infof(ctx, "Sending to Python Room")
-		msg, err := postToRoom(ctx, "https://python-bot-dot-uplifted-elixir-203119.appspot.com", bytes.NewReader(b))
-		if err != nil {
-			// Log Error and Return An Error Message in a Chat Friendly Format
-			log.Errorf(ctx, "An Error Occurred: ", err)
-			json.NewEncoder(w).Encode(chat.Message{Text: "An error has occurred"})
-		}
-		log.Infof(ctx, "Returned from Bot Dev Room: %+v", msg)
-		json.NewEncoder(w).Encode(msg)
-
-	case "spaces/AAAAcZ1PlGk":
-		log.Infof(ctx, "Sending to Tacos Room")
-		msg, err := postToRoom(ctx, "https://basic-taco-bot-dot-uplifted-elixir-203119.appspot.com", bytes.NewReader(b))
-		if err != nil {
-			// Log Error and Return An Error Message in a Chat Friendly Format
-			log.Errorf(ctx, "An Error Occurred: ", err)
-			json.NewEncoder(w).Encode(chat.Message{Text: "An error has occurred"})
-		}
-		log.Infof(ctx, "Returned from Tacos Room: %+v", msg)
-		json.NewEncoder(w).Encode(msg)
-	case "spaces/AAAAyXeUgAM", "spaces/AAAALPK7rTg":
-		log.Infof(ctx, "Sending to Spotify Room")
-		msg, err := postToRoom(ctx, "https://spotify-chat-dot-uplifted-elixir-203119.appspot.com/bot", bytes.NewReader(b))
-		if err != nil {
-			// Log Error and Return An Error Message in a Chat Friendly Format
-			log.Errorf(ctx, "An Error Occurred: ", err)
-			json.NewEncoder(w).Encode(chat.Message{Text: "An error has occurred"})
-		}
-
-		log.Infof(ctx, "Returned from Spotify Room: %+v", msg)
-		json.NewEncoder(w).Encode(msg)
-	// case "spaces/AAAA3dgDXKM":
-	// 	log.Infof(ctx, "Sending to Hubot Room")
-	// 	msg, err := postToRoom(ctx, "https://")
-	default:
-		// Default Switch Function, sends to Go Bot
-
-		log.Infof(ctx, "Sending to Bot Development")
-		msg, err := postToRoom(ctx, "https://bitmoji-bot-dot-uplifted-elixir-203119.appspot.com", bytes.NewReader(b))
-		if err != nil {
-			// Log Error and Return An Error Message in a Chat Friendly Format
-			log.Errorf(ctx, "An Error Occurred: ", err)
-			json.NewEncoder(w).Encode(chat.Message{Text: "An error has occurred"})
-		}
-		log.Infof(ctx, "Returned from Bot Development: %+v", msg)
-		json.NewEncoder(w).Encode(msg)
+	var gp GithubPayload
+	err := json.Unmarshal(b, &gp)
+	if err != nil {
+		log.Errorf(ctx, "Error Unmarshalling Github Payload", err)
+		return
 	}
-
+	err = postToRoom(ctx, chat.Message{Text: gp.PullRequest.User.Login + " " + gp.Action + " a Pull Request on repo: " + gp.Repository.FullName + "\n" + gp.PullRequest.URL}, "AAAAV2Ons90", strconv.Itoa(gp.Number))
+	if err != nil {
+		log.Errorf(ctx, "Error Posting to Room", err)
+		return
+	}
+	w.WriteHeader(http.StatusAccepted)
+	w.Write([]byte("Success"))
 }
 
 func main() {
@@ -134,26 +90,26 @@ func main() {
 }
 
 // Helper Function to cut down on code redundancy
-func postToRoom(ctx context.Context, url string, body io.Reader) (chat.Message, error) {
-	var br chat.Message
-
-	// Use urlfetch in App Engine
-	client := urlfetch.Client(ctx)
-	resp, err := client.Post(url, "application/json; charset=utf-8", body)
+func postToRoom(ctx context.Context, payload chat.Message, space string, threadKey string) error {
+	url := "https://chat.googleapis.com/v1/spaces/" + space + "/messages?threadKey=" + threadKey
+	client, err := google.DefaultClient(ctx, "https://www.googleapis.com/auth/chat.bot")
+	if err != nil {
+		log.Errorf(ctx, "Error Getting Default Token Source", err)
+		return err
+	}
+	body, err := json.Marshal(payload)
+	resp, err := client.Post(url, "application/json; charset=utf-8", bytes.NewBuffer(body))
 	if err != nil {
 		log.Infof(ctx, "Error In Post to Room %+v", err)
-		return br, err
+		return err
 	}
 	defer resp.Body.Close()
 	b, err := ioutil.ReadAll(resp.Body)
 	log.Infof(ctx, "Byte to String %v", string(b))
 	if err != nil {
-		return br, err
+		return err
 	}
-	err = json.Unmarshal(b, &br)
-	if err != nil {
-		return br, err
-	}
-	return br, nil
+
+	return nil
 
 }
