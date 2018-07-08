@@ -64,16 +64,19 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	// Set Context to appengine context
 
 	// Read Body into Bytes Array
-	b, e := ioutil.ReadAll(r.Body)
+	b, err := ioutil.ReadAll(r.Body)
 	defer r.Body.Close()
-	if e != nil {
-		json.NewEncoder(w).Encode(e)
+	if err != nil {
+		log.Errorf(ctx, "Error Reading Body "+err.Error())
+		http.Error(w, "Error Reading Body", http.StatusInternalServerError)
+		return
 	}
 	log.Infof(ctx, "Body: %+v", string(b))
 	var gp GithubPayload
-	err := json.Unmarshal(b, &gp)
+	err = json.Unmarshal(b, &gp)
 	if err != nil {
 		log.Errorf(ctx, "Error Unmarshalling Github Payload", err)
+		http.Error(w, "Error Reading Payload", http.StatusInternalServerError)
 		return
 	}
 	log.Infof(ctx, "Check payload", gp)
@@ -86,6 +89,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	err = postToRoom(ctx, chat.Message{Text: gp.PullRequest.User.Login + " " + action + " a Pull Request on repo: " + gp.Repository.FullName + "\n" + gp.PullRequest.URL}, "AAAAV2Ons90", strconv.Itoa(gp.Number))
 	if err != nil {
 		log.Errorf(ctx, "Error Posting to Room", err)
+		http.Error(w, "Error Sending Alert", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)
