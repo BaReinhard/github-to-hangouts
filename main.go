@@ -75,6 +75,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		log.Errorf(ctx, "Error Unmarshalling Github Payload", err)
 		return
 	}
+	log.Infof(ctx, "Check payload", gp)
 	err = postToRoom(ctx, chat.Message{Text: gp.PullRequest.User.Login + " " + gp.Action + " a Pull Request on repo: " + gp.Repository.FullName + "\n" + gp.PullRequest.URL}, "AAAAV2Ons90", strconv.Itoa(gp.Number))
 	if err != nil {
 		log.Errorf(ctx, "Error Posting to Room", err)
