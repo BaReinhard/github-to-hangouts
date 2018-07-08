@@ -23,10 +23,11 @@ type GithubPayload struct {
 	Repository  Repository  `json:"repository"`
 }
 type PullRequest struct {
-	URL  string `json:"url"`
-	ID   int    `json:"id"`
-	User User   `json:"user"`
-	Body string `json:"body"`
+	URL    string `json:"url"`
+	ID     int    `json:"id"`
+	User   User   `json:"user"`
+	Body   string `json:"body"`
+	Merged bool   `json:"merged"`
 }
 type User struct {
 	Login     string `json:"login"`
@@ -76,7 +77,13 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Infof(ctx, "Check payload", gp)
-	err = postToRoom(ctx, chat.Message{Text: gp.PullRequest.User.Login + " " + gp.Action + " a Pull Request on repo: " + gp.Repository.FullName + "\n" + gp.PullRequest.URL}, "AAAAV2Ons90", strconv.Itoa(gp.Number))
+	var action string
+	if gp.PullRequest.Merged {
+		action = "merged"
+	} else {
+		action = gp.Action
+	}
+	err = postToRoom(ctx, chat.Message{Text: gp.PullRequest.User.Login + " " + action + " a Pull Request on repo: " + gp.Repository.FullName + "\n" + gp.PullRequest.URL}, "AAAAV2Ons90", strconv.Itoa(gp.Number))
 	if err != nil {
 		log.Errorf(ctx, "Error Posting to Room", err)
 		return
