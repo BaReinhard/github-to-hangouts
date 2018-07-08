@@ -1,0 +1,44 @@
+module.exports = {
+  type: "MESSAGE",
+  eventTime: "2018-05-06T22: 45: 03.107999Z",
+  token: "5yDBPciBIMJmuhH6w6_DiAqGNu8RsaVAyKK22aFApGE=",
+  message: {
+    name: "spaces/AAAAV2Ons90/messages/3laTi5qmQEI.P_ExkPeyHgo",
+    sender: {
+      name: "users/102341847329361403367",
+      displayName: "Brett Reinhard",
+      avatarUrl:
+        "https: //lh6.googleusercontent.com/-NICgXp92pUI/AAAAAAAAAAI/AAAAAAAAAAA/AIcfdXAAD8QTIzDt-C0Py1fVg-PqrOciGQ/mo/photo.jpg",
+      email: "brett@hephaestus.solutions",
+      type: "HUMAN"
+    },
+    createTime: "2018-05-06T22:45:03.107999Z",
+    text: "@HelpBot asana fix it",
+    annotations: [[Object]],
+    thread: {
+      name: "spaces/AAAAV2Ons90/threads/3laTi5qmQEI",
+      retentionSettings: [Object]
+    },
+    space: {
+      name: "spaces/AAAAV2Ons90",
+      type: "ROOM",
+      displayName: "Bot Development"
+    },
+    argumentText: " asana fix it"
+  },
+  user: {
+    name: "users/102341847329361403367",
+    displayName: "Brett Reinhard",
+    avatarUrl:
+      "https://lh6.googleusercontent.com/-NICgXp92pUI/AAAAAAAAAAI/AAAAAAAAAAA/AIcfdXAAD8QTIzDt-C0Py1fVg-PqrOciGQ/mo/photo.jpg",
+    email: "brett@hephaestus.solutions",
+    type: "HUMAN"
+  },
+  space: {
+    name: "spaces/AAAAV2Ons90",
+    type: "ROOM",
+    displayName: "Bot Development"
+  },
+  configCompleteRedirectUrl:
+    "https://chat.google.com/api/bot_config_complete?token=ACl60UwPqEt9mpfOSChL5gHbMWjaMTELUtOATlH3NPL1UOB41gCUlhQmoxjMpmhBqSSI95IRzphf_STV-miSiiDIgDs9BnOPdFZzm1dDNXvcbm8I727Gcjhcxct-yrkH7GtGPtDWwdn_aRloxrV-"
+};
