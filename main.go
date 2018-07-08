@@ -23,11 +23,12 @@ type GithubPayload struct {
 	Repository  Repository  `json:"repository"`
 }
 type PullRequest struct {
-	URL    string `json:"url"`
-	ID     int    `json:"id"`
-	User   User   `json:"user"`
-	Body   string `json:"body"`
-	Merged bool   `json:"merged"`
+	URL     string `json:"url"`
+	ID      int    `json:"id"`
+	User    User   `json:"user"`
+	Body    string `json:"body"`
+	Merged  bool   `json:"merged"`
+	HTMLURL string `json:"html_url"`
 }
 type User struct {
 	Login     string `json:"login"`
@@ -79,14 +80,8 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error Reading Payload", http.StatusInternalServerError)
 		return
 	}
-	log.Infof(ctx, "Check payload", gp)
-	var action string
-	if gp.PullRequest.Merged {
-		action = "merged"
-	} else {
-		action = gp.Action
-	}
-	err = postToRoom(ctx, chat.Message{Text: gp.PullRequest.User.Login + " " + action + " a Pull Request on repo: " + gp.Repository.FullName + "\n" + gp.PullRequest.URL}, "AAAAV2Ons90", strconv.Itoa(gp.Number))
+	responseText := generateAlert(gp)
+	err = postToRoom(ctx, chat.Message{Text: responseText}, "AAAAV2Ons90", strconv.Itoa(gp.Number))
 	if err != nil {
 		log.Errorf(ctx, "Error Posting to Room", err)
 		http.Error(w, "Error Sending Alert", http.StatusInternalServerError)
@@ -99,6 +94,20 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	http.HandleFunc("/", indexHandler)
 	appengine.Main() // Starts the server to receive requests
+}
+
+func generateAlert(gp GithubPayload) string {
+	var responseText string
+	var action string
+	if gp.PullRequest.Merged {
+		action = "merged"
+	} else {
+		action = gp.Action
+	}
+	responseText = gp.PullRequest.User.Login + " " + action + " a Pull Request  <" + gp.PullRequest.HTMLURL + "|" + gp.Repository.FullName + ">"
+
+	return responseText
+
 }
 
 // Helper Function to cut down on code redundancy
