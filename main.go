@@ -8,12 +8,11 @@ import (
 	"os"
 	"strconv"
 
-	"golang.org/x/oauth2/google"
-
 	"golang.org/x/net/context"
 	"google.golang.org/api/chat/v1"
 	"google.golang.org/appengine" // Required external App Engine library
 	"google.golang.org/appengine/log"
+	"google.golang.org/appengine/urlfetch"
 )
 
 type GithubPayload struct {
@@ -112,14 +111,18 @@ func generateAlert(gp GithubPayload) string {
 
 // Helper Function to cut down on code redundancy
 func postToRoom(ctx context.Context, payload chat.Message, space string, threadKey string) error {
-	url := "https://chat.googleapis.com/v1/spaces/" + space + "/messages?threadKey=" + threadKey
-	client, err := google.DefaultClient(ctx, "https://www.googleapis.com/auth/chat.bot")
-	if err != nil {
-		log.Errorf(ctx, "Error Getting Default Token Source", err)
-		return err
-	}
+	url := os.Getenv("KERYX_URL")
+
+	client := urlfetch.Client(ctx)
+
 	body, err := json.Marshal(payload)
-	resp, err := client.Post(url, "application/json; charset=utf-8", bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", url, bytes.NewBuffer(body))
+	req.Header.Add("Authorization", "Bearer "+os.Getenv("SECURE_KEY"))
+	req.Header.Add("Space", space)
+	req.Header.Add("ThreadKey", threadKey)
+	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("Destination", "google")
+	resp, err := client.Do(req)
 	if err != nil {
 		log.Infof(ctx, "Error In Post to Room %+v", err)
 		return err
